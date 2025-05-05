@@ -104,14 +104,19 @@ def _is_available_team(team_id: str, user_api_key_dict: UserAPIKeyAuth) -> bool:
 
 
 async def get_all_team_memberships(
-    prisma_client: PrismaClient, team_id: List[str], user_id: Optional[str] = None
+    prisma_client: PrismaClient, team_ids: List[str], user_id: Optional[str] = None
 ) -> List[LiteLLM_TeamMembership]:
     """Get all team memberships for a given user"""
     ## GET ALL MEMBERSHIPS ##
-    if user_id is None:
-        where_obj = {"team_id": {"in": team_id}}
-    else:
-        where_obj = {"user_id": str(user_id), "team_id": {"in": team_id}}
+    where_obj: Dict[str, Dict[str, List[str]]] = {
+        "team_id": {"in": team_ids}
+    }
+    if user_id is not None:
+        where_obj["user_id"] = {"in": [user_id]}
+    # if user_id is None:
+    #     where_obj = {"team_id": {"in": team_id}}
+    # else:
+    #     where_obj = {"user_id": str(user_id), "team_id": {"in": team_id}}
 
     team_memberships = await prisma_client.db.litellm_teammembership.find_many(
         where=where_obj,
@@ -1180,7 +1185,7 @@ async def team_member_update(
     ### upsert new budget
     if data.max_budget_in_team is not None:
         if identified_budget_id is None:
-            new_budget = await prisma_client.db.litellm_budgettable.create(
+            _ = await prisma_client.db.litellm_budgettable.create(
                 data={
                     "max_budget": data.max_budget_in_team,
                     "created_by": user_api_key_dict.user_id or "",
